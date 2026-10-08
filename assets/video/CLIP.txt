@@ -1,0 +1,5 @@
+Client demo used as the record-screen preview.
+
+Vertical clip, 720×1280, about 10 seconds, of a plasterer smoothing a ceiling.
+No exoskeleton is worn in the picture. The file is played looped and muted.
+Joint positions in src/pose/clipTrack.ts are normalized to this video.

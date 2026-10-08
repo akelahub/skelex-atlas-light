@@ -30,15 +30,15 @@ Open Expo Go and scan the QR code. The app stays inside the Expo SDK 57 runtime,
 1. **Start** — Risk Assessment, or placeholders for Support Strength Advisor and the ROI calculator.
 2. **Methode** — RULA, REBA, NIOSH, or KIM. Verder stays disabled until one is selected.
 3. **Toestemming** — the person in frame agrees, and video stays on the device. Both boxes are required. This build states that it does not use the camera.
-4. **Opname** — still photo of a worker reaching to a shelf, with a stick figure locked to that photo. Start/stop, timer, and an exoskeleton toggle. The toggle lowers shoulder load and draws a gold brace. Shoulder and back joints run green → yellow → orange → red.
+4. **Opname** — looped, muted client clip of a plasterer smoothing a ceiling. A stick figure follows his joints: red/orange while both arms are overhead, green when the arms come down, yellow on the one-arm touch-up. Start/stop, timer, and an exoskeleton toggle. The toggle lowers shoulder load and draws a gold brace.
 5. **Rapport** — risk, score, analyse, conclusion, and a with/without comparison. Without the exoskeleton this matches the concept (Hoog Risico, score 6). With it, the result is illustrative (score 3).
 6. **Advies** — placeholder.
 
-Mock numbers live in `src/mock/`. The pose lives in `src/pose/` (`landmarks.ts`, `frame.ts`, `simulatePose.ts`).
+Mock report numbers live in `src/mock/`. The pose lives in `src/pose/`: `clipTrack.ts` is the baked joint path, `clipPose.ts` samples it, `simulatePose.ts` turns arm height into colors and shoulder load.
 
-## Photo
+## Clip
 
-`assets/images/worker-reach.jpg` is a portrait crop of [Pexels 7019315](https://www.pexels.com/photo/person-pulling-box-from-a-shelf-7019315/) by cottonbro studio (Pexels License). The worker’s clothes have no printed skeleton. Joint coordinates are fractions of this file, and the overlay uses the same fitted rectangle as the image, so the figure does not drift when the phone width changes.
+`assets/video/plasterer-ceiling.mp4` is the client demo (about 10 seconds, 720×1280). It plays looped and muted behind the skeleton, in the same fitted rectangle, so the figure stays on the body when the phone width changes. The track follows the clip: both arms overhead for most of the first six seconds, arms down around 6.5–7.6 seconds, then a one-handed touch-up. There is no exoskeleton in the picture. The app does not run a live pose model.
 
 ## Out of scope
 
