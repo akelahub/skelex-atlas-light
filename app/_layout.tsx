@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -6,7 +6,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AssessmentProvider } from '../src/assessment/AssessmentContext';
 
 export default function RootLayout() {
-  const { width } = useWindowDimensions();
+  const { width: nativeWidth } = useWindowDimensions();
+  const [webWidth, setWebWidth] = useState<number | null>(null);
+  // Static export hydrates with the server window size (0). Reading innerWidth
+  // after mount is what keeps the phone column on a wide browser.
+  const width = webWidth ?? nativeWidth;
   const wide = Platform.OS === 'web' && width > 520;
 
   useEffect(() => {
@@ -19,13 +23,24 @@ export default function RootLayout() {
     document.body.style.height = '100%';
     document.body.style.margin = '0';
     document.body.style.backgroundColor = '#09090b';
+
+    const read = () => setWebWidth(window.innerWidth);
+    read();
+    window.addEventListener('resize', read);
+    return () => window.removeEventListener('resize', read);
   }, []);
 
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <View style={[styles.root, wide ? styles.rootWide : null]}>
-        <View style={[styles.column, wide ? styles.columnWide : null]}>
+      <View
+        {...({ dataSet: { atlasRoot: '1' } } as object)}
+        style={[styles.root, wide ? styles.rootWide : null]}
+      >
+        <View
+          {...({ dataSet: { atlasColumn: '1' } } as object)}
+          style={[styles.column, wide ? styles.columnWide : null]}
+        >
           <AssessmentProvider>
             <Stack
               screenOptions={{
