@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssessment } from '../src/assessment/AssessmentContext';
 import { AtlasLogo } from '../src/components/AtlasLogo';
@@ -8,9 +9,13 @@ import { BackButton } from '../src/components/BackButton';
 import { ProgressBar } from '../src/components/ProgressBar';
 import { SkeletonOverlay } from '../src/components/SkeletonOverlay';
 import { formatDuration } from '../src/format';
+import { CLIP_SIZE, plastererClip, poseSnapshot } from '../src/pose/clipPose';
 import { frameForPhoto, type Frame } from '../src/pose/frame';
-import { WORKER_IMAGE, workerPhoto } from '../src/pose/landmarks';
-import { shoulderLoadPercent, shoulderReductionPercent } from '../src/pose/simulatePose';
+import {
+  phaseLabel,
+  shoulderLoadForPose,
+  shoulderReductionForPose,
+} from '../src/pose/simulatePose';
 import { colors } from '../src/theme';
 
 export default function RecordScreen() {
@@ -20,8 +25,16 @@ export default function RecordScreen() {
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [clipTime, setClipTime] = useState(0);
   const recordingRef = useRef(false);
   const startedAtRef = useRef<number | null>(null);
+  const player = useVideoPlayer(plastererClip, (video) => {
+    video.loop = true;
+    video.muted = true;
+    video.volume = 0;
+    video.timeUpdateEventInterval = 0.05;
+    video.play();
+  });
 
   useEffect(() => {
     if (!method || !consentAccepted) {
@@ -42,9 +55,30 @@ export default function RecordScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const frame: Frame = frameForPhoto(stage.width, stage.height, WORKER_IMAGE.width, WORKER_IMAGE.height);
-  const load = shoulderLoadPercent(exoEnabled);
-  const reduction = shoulderReductionPercent();
+  useEffect(() => {
+    const subscription = player.addListener('timeUpdate', ({ currentTime }) => {
+      setClipTime(currentTime);
+    });
+    // play() before the view mounts is a no-op, so keep trying until the clip moves.
+    const started = Date.now();
+    const kick = setInterval(() => {
+      player.play();
+      if (player.currentTime > 0.15 || Date.now() - started > 8000) {
+        clearInterval(kick);
+      }
+    }, 200);
+    return () => {
+      clearInterval(kick);
+      subscription.remove();
+    };
+  }, [player]);
+
+  const frame: Frame = frameForPhoto(stage.width, stage.height, CLIP_SIZE.width, CLIP_SIZE.height);
+  const { joints, pose } = poseSnapshot(clipTime);
+  const load = shoulderLoadForPose(pose, exoEnabled);
+  const reduction = shoulderReductionForPose(pose);
+  const phase = phaseLabel(pose);
+  const loadColor = load >= 70 ? colors.bad : load >= 48 ? colors.worse : load >= 34 ? colors.yellow : colors.good;
 
   function startRecording() {
     startedAtRef.current = Date.now();
@@ -77,9 +111,12 @@ export default function RecordScreen() {
       >
         {frame.width > 0 ? (
           <>
-            <Image
-              source={workerPhoto}
-              resizeMode="stretch"
+            <VideoView
+              player={player}
+              nativeControls={false}
+              contentFit="fill"
+              surfaceType="textureView"
+              pointerEvents="none"
               style={{
                 position: 'absolute',
                 left: frame.x,
@@ -96,7 +133,7 @@ export default function RecordScreen() {
               ]}
             />
             <View pointerEvents="none" style={{ position: 'absolute', left: frame.x, top: frame.y }}>
-              <SkeletonOverlay width={frame.width} height={frame.height} exo={exoEnabled} />
+              <SkeletonOverlay width={frame.width} height={frame.height} exo={exoEnabled} joints={joints} />
             </View>
           </>
         ) : null}
@@ -110,6 +147,7 @@ export default function RecordScreen() {
           </View>
         </View>
         <Text style={styles.simLabel}>Simulatie · geen live camera</Text>
+        <Text style={styles.phaseLabel}>{phase}</Text>
         <View pointerEvents="none" style={styles.finder}>
           <View style={[styles.corner, styles.cornerTL]} />
           <View style={[styles.corner, styles.cornerTR]} />
@@ -120,7 +158,7 @@ export default function RecordScreen() {
         <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.loadRow}>
           <Text style={styles.loadLabel}>Schouderbelasting</Text>
-          <Text style={[styles.loadValue, { color: exoEnabled ? colors.good : colors.worse }]}>{load}%</Text>
+          <Text style={[styles.loadValue, { color: loadColor }]}>{load}%</Text>
         </View>
         <View style={styles.track}>
           <View
@@ -128,7 +166,7 @@ export default function RecordScreen() {
               styles.fill,
               {
                 width: `${load}%`,
-                backgroundColor: exoEnabled ? colors.good : colors.worse,
+                backgroundColor: loadColor,
               },
             ]}
           />
@@ -190,7 +228,7 @@ const styles = StyleSheet.create({
   },
   scrim: {
     position: 'absolute',
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
   },
   topBar: {
     position: 'absolute',
@@ -230,6 +268,14 @@ const styles = StyleSheet.create({
     color: colors.title,
     fontSize: 13,
     fontWeight: '600',
+  },
+  phaseLabel: {
+    position: 'absolute',
+    top: 76,
+    left: 16,
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '700',
   },
   finder: {
     position: 'absolute',
