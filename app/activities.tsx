@@ -32,7 +32,12 @@ export default function ActivitiesScreen() {
         <Text style={styles.title}>Kies een andere activiteit</Text>
         <Text style={styles.lead}>Deze onderdelen zijn placeholders in Atlas Light.</Text>
         {ITEMS.map((item) => (
-          <Pressable key={item.href} onPress={() => router.push(item.href)} style={styles.card}>
+          <Pressable
+            key={item.href}
+            accessibilityRole="button"
+            onPress={() => router.push(item.href)}
+            style={styles.card}
+          >
             <Text style={styles.kicker}>{item.kicker}</Text>
             <Text style={styles.cardBody}>{item.body}</Text>
             <Text style={styles.open}>Open placeholder</Text>

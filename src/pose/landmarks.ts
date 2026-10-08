@@ -42,7 +42,7 @@ export const LANDMARKS: readonly Joint[] = [
   { id: 'neck', x: 0.5, y: 0.375, role: 'neck' },
   { id: 'shoulderL', x: 0.36, y: 0.425, role: 'shoulder' },
   { id: 'elbowL', x: 0.195, y: 0.335, role: 'arm' },
-  { id: 'wristL', x: 0.118, y: 0.248, role: 'wrist' },
+  { id: 'wristL', x: 0.125, y: 0.27, role: 'wrist' },
   { id: 'shoulderR', x: 0.655, y: 0.44, role: 'shoulder' },
   { id: 'elbowR', x: 0.72, y: 0.548, role: 'arm' },
   { id: 'wristR', x: 0.782, y: 0.625, role: 'wrist' },

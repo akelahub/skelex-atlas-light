@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,8 @@ export default function RecordScreen() {
   const [stage, setStage] = useState({ width: 0, height: 0 });
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const recordingRef = useRef(false);
+  const startedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!method || !consentAccepted) {
@@ -27,34 +29,50 @@ export default function RecordScreen() {
     }
   }, [consentAccepted, method, router]);
 
+  // One clock for the life of the screen. Elapsed time comes from Date.now(),
+  // so a leaked interval cannot run the timer faster than real time.
   useEffect(() => {
-    if (!recording) {
-      return;
-    }
     const timer = setInterval(() => {
-      setElapsed((value) => value + 1);
-    }, 1000);
+      if (!recordingRef.current || startedAtRef.current == null) {
+        return;
+      }
+      const next = Math.floor((Date.now() - startedAtRef.current) / 1000);
+      setElapsed((current) => (current === next ? current : next));
+    }, 200);
     return () => clearInterval(timer);
-  }, [recording]);
+  }, []);
 
   const frame: Frame = frameForPhoto(stage.width, stage.height, WORKER_IMAGE.width, WORKER_IMAGE.height);
   const load = shoulderLoadPercent(exoEnabled);
   const reduction = shoulderReductionPercent();
 
+  function startRecording() {
+    startedAtRef.current = Date.now();
+    recordingRef.current = true;
+    setElapsed(0);
+    setRecording(true);
+  }
+
   function stopAndReport() {
+    recordingRef.current = false;
+    const seconds =
+      startedAtRef.current == null ? 0 : Math.floor((Date.now() - startedAtRef.current) / 1000);
+    setElapsed(seconds);
     setRecording(false);
-    finishRecording(elapsed, exoEnabled);
+    finishRecording(seconds, exoEnabled);
     router.push('/report');
   }
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 10) }]}>
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
       <ProgressBar step={3} />
       <View
         style={styles.stage}
         onLayout={(event) => {
           const { width, height } = event.nativeEvent.layout;
-          setStage({ width, height });
+          setStage((current) =>
+            current.width === width && current.height === height ? current : { width, height },
+          );
         }}
       >
         {frame.width > 0 ? (
@@ -98,9 +116,8 @@ export default function RecordScreen() {
           <View style={[styles.corner, styles.cornerBL]} />
           <View style={[styles.corner, styles.cornerBR]} />
         </View>
-      </View>
 
-      <View style={styles.dock}>
+        <View style={[styles.dock, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.loadRow}>
           <Text style={styles.loadLabel}>Schouderbelasting</Text>
           <Text style={[styles.loadValue, { color: exoEnabled ? colors.good : colors.worse }]}>{load}%</Text>
@@ -130,6 +147,7 @@ export default function RecordScreen() {
           </View>
           <Pressable
             accessibilityRole="switch"
+            accessibilityLabel="Exoskelet simulatie"
             accessibilityState={{ checked: exoEnabled }}
             onPress={() => setExoEnabled(!exoEnabled)}
             style={[styles.switch, exoEnabled ? styles.switchOn : null]}
@@ -143,18 +161,18 @@ export default function RecordScreen() {
           accessibilityRole="button"
           accessibilityLabel={recording ? 'Stop de meting' : 'Start de meting'}
           onPress={() => {
-            if (recording) {
+            if (recordingRef.current) {
               stopAndReport();
               return;
             }
-            setElapsed(0);
-            setRecording(true);
+            startRecording();
           }}
           style={styles.record}
         >
           {recording ? <View style={styles.stopSquare} /> : null}
         </Pressable>
         <Text style={styles.recordLabel}>{recording ? 'Stop de meting' : 'Start de meting'}</Text>
+        </View>
       </View>
     </View>
   );
@@ -214,8 +232,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   finder: {
-    ...StyleSheet.absoluteFill,
-    margin: 14,
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    right: 12,
+    bottom: 250,
   },
   corner: {
     position: 'absolute',
@@ -228,9 +249,13 @@ const styles = StyleSheet.create({
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 },
   dock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     paddingHorizontal: 16,
-    paddingTop: 10,
-    backgroundColor: '#000000',
+    paddingTop: 12,
+    backgroundColor: 'rgba(0,0,0,0.78)',
   },
   loadRow: {
     flexDirection: 'row',
