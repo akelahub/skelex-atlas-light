@@ -1,0 +1,11 @@
+Worker photo used on the record screen.
+
+Source: Pexels, photo 7019315, "Person pulling Box from a Shelf" by cottonbro studio.
+https://www.pexels.com/photo/person-pulling-box-from-a-shelf-7019315/
+
+License: Pexels License — free to use, including commercially. Attribution is not required.
+https://www.pexels.com/license/
+
+The file in this folder is a portrait crop of that photo, framed on one worker
+reaching to a shelf. The clothing has no printed skeleton. Joint positions in
+src/pose/landmarks.ts are normalized (0–1) to this exact crop.
